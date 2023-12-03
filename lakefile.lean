@@ -17,3 +17,4 @@ lean_exe «adventofcode» where
 
 lean_exe day01 { root:= `AdventOfCode.Day01 }
 lean_exe day02 { root:= `AdventOfCode.Day02 }
+lean_exe day03 { root:= `AdventOfCode.Day03 }
