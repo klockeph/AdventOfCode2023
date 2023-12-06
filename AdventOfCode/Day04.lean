@@ -1,4 +1,5 @@
 import AdventOfCode.IO
+import AdventOfCode.Common
 import Lean.Data.HashSet
 
 def testinput := "
@@ -35,9 +36,6 @@ def processLine (win : HashSet Nat) (h : List Nat) : Nat :=
   match countLine win h with
   | 0 => 0
   | n => 2^(n-1)
-
-def uncurry (f : α → β → γ) (p : α × β) : γ :=
-  f p.1 p.2
 
 def List.processLines (s : List String) : List Nat :=
   ((s.map parseLine).map $ uncurry processLine)
