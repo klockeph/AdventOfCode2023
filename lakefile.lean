@@ -21,3 +21,4 @@ lean_exe day03 { root:= `AdventOfCode.Day03 }
 lean_exe day04 { root:= `AdventOfCode.Day04 }
 lean_exe day05 { root:= `AdventOfCode.Day05 }
 lean_exe day06 { root:= `AdventOfCode.Day06 }
+lean_exe day07 { root:= `AdventOfCode.Day07 }
