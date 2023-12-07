@@ -10,13 +10,15 @@ KTJJT 220
 QQQJA 483
 ".trim
 
+def readHand (s : String) : List Char × Nat :=
+  ((s.take 5).toList, (s.drop 6).toNat!)
+
+namespace PartOne
+
 def cards := "AKQJT98765432".toList
 
 def isHigherCard (c1 c2 : Char) : Bool :=
   cards.indexOf! c1 < cards.indexOf! c2
-
-def readHand (s : String) : List Char × Nat :=
-  ((s.take 5).toList, (s.drop 6).toNat!)
 
 def initialRank (cs : List Char) : Nat :=
   let grouped := ((cs.mergeSort isHigherCard).groupBy (. == .)).mergeSort (λl₁ l₂ => l₁.length ≥ l₂.length)
@@ -36,10 +38,14 @@ def areHigherCards : List Char → List Char → Bool
                     else if isHigherCard b a then false
                     else areHigherCards as bs
   | _, _ => false
+end PartOne
 
-def sortHandsInRanks (hs : List (List Char × Nat)) : List (List (List Char × Nat)) :=
-  let hands_with_rank := (hs.map (λh => (h, initialRank h.1))).mergeSort (λx y => x.2 < y.2)
-  (hands_with_rank.groupBy (λx y => x.2 == y.2)).map (λx => (x.mergeSort (λa b => areHigherCards b.1.1 a.1.1)).map (λ y => y.1))
+def addRanksToHands (hs : List (List Char × Nat)) (rankfn : (List Char → Nat)) :=
+ (hs.map (λh => (h, rankfn h.1))).mergeSort (λx y => x.2 < y.2)
+
+def sortHandsInRanks (hs : List (List Char × Nat)) (rankfn : (List Char → Nat)) (handfn : List Char → List Char → Bool) : List (List (List Char × Nat)) :=
+  let hands_with_rank := addRanksToHands hs rankfn
+  (hands_with_rank.groupBy (λx y => x.2 == y.2)).map (λx => (x.mergeSort (λa b => handfn b.1.1 a.1.1)).map (λ y => y.1))
 
 def addHands (rs : List Nat) (rank : Nat) : Nat :=
   (rs.foldl (λa r => (a.1+1, a.2 + a.1 * r)) (rank, 0)).2
@@ -49,8 +55,11 @@ def addPartitionedBids (rs : List (List Nat)) (acc : Nat) (rank : Nat) : Nat :=
   | [] => acc
   | hs::rs => addPartitionedBids rs (acc + (addHands hs rank)) (rank + hs.length)
 
-def solve_one (l : List String) :=
-  addPartitionedBids ((sortHandsInRanks (l.map readHand)).map λa => a.map λb => b.2) 0 1
+def solve' (l : List String) (rankfn : (List Char → Nat)) (handfn : List Char → List Char → Bool) : Nat :=
+  addPartitionedBids ((sortHandsInRanks (l.map readHand) rankfn handfn).map λa => a.map λb => b.2) 0 1
+
+def solve_one (l : List String) : Nat :=
+  solve' l PartOne.initialRank PartOne.areHigherCards
 
 -- PART TWO
 -- Unfortunately it seems I have to code a lot new?
@@ -61,9 +70,6 @@ def cards := "AKQT98765432J".toList
 
 def isHigherCard (c1 c2 : Char) : Bool :=
   cards.indexOf! c1 < cards.indexOf! c2
-
-def readHand (s : String) : List Char × Nat :=
-  ((s.take 5).toList, (s.drop 6).toNat!)
 
 def countJokers (cs : List Char) : Nat := go cs 0 where
   go : List Char → Nat → Nat
@@ -92,29 +98,14 @@ def areHigherCards : List Char → List Char → Bool
                     else if isHigherCard b a then false
                     else areHigherCards as bs
   | _, _ => false
-
-def addRanksToHands (hs : List (List Char × Nat)) :=
- (hs.map (λh => (h, initialRank h.1))).mergeSort (λx y => x.2 < y.2)
-
-def sortHandsInRanks (hs : List (List Char × Nat)) : List (List (List Char × Nat)) :=
-  let hands_with_rank := addRanksToHands hs
-  (hands_with_rank.groupBy (λx y => x.2 == y.2)).map (λx => (x.mergeSort (λa b => areHigherCards b.1.1 a.1.1)).map (λ y => y.1))
-
-def addHands (rs : List Nat) (rank : Nat) : Nat :=
-  (rs.foldl (λa r => (a.1+1, a.2 + a.1 * r)) (rank, 0)).2
-
-def addPartitionedBids (rs : List (List Nat)) (acc : Nat) (rank : Nat) : Nat :=
-  match rs with
-  | [] => acc
-  | hs::rs => addPartitionedBids rs (acc + (addHands hs rank)) (rank + hs.length)
-
-def solve (l : List String) :=
-  addPartitionedBids ((sortHandsInRanks (l.map readHand)).map λa => a.map λb => b.2) 0 1
-
 end PartTwo
+
+def solve_two (l : List String) : Nat :=
+  solve' l PartTwo.initialRank PartTwo.areHigherCards
+
 
 def main : IO Unit := do
   let f ← String.trim <$> IO.readInputForDay 7
   let f := (f.splitOn "\n").map String.trim
   IO.println s!"Solution one: {solve_one f}"
-  IO.println s!"Solution two: {PartTwo.solve f}"
+  IO.println s!"Solution two: {solve_two f}"
