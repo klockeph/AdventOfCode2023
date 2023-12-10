@@ -19,44 +19,39 @@ def parseInput (ls : List String) : (List Char) × HashMap String (String × Str
   let m := parseMap $ ls.drop 2
   (dirs, m)
 
-def step (m : HashMap String (String × String)) (loc : String) (dir : Char) : String :=
-  match dir, m.find! loc with
+def step (m : HashMap String (String × String)) (loc : List String) (dir : Char) : List String :=
+  loc.map λl => match dir, m.find! l with
   | 'L', (l, _) => l
   | 'R', (_, r) => r
   | _, _ => panic! "Invalid direction!"
 
-def walk (m : HashMap String (String × String)) (dirs : List Char) (loc : String) (acc : Nat) : String × Nat :=
+def walk (step : List String → Char → List String) (end_con : List String → Bool) (dirs : List Char) (loc : List String) (acc : Nat) : List String × Nat :=
   match dirs with
   | [] => (loc, acc)
   | (d::ds) =>
-    let newLoc := step m loc d
-    if newLoc = "ZZZ" then (newLoc,acc+1)
-    else walk m ds newLoc (acc+1)
+    let newLoc := step loc d
+    if end_con newLoc then (newLoc,acc+1)
+    else walk step end_con ds newLoc (acc+1)
 
-partial def walkMany (m : HashMap String (String × String)) (dirs : List Char) (loc : String) (acc : Nat) : Nat :=
-  let (newLoc, steps) := walk m dirs loc acc
-  if newLoc = "ZZZ" then steps
-  else walkMany m dirs newLoc steps
+partial def walkMany (step : List String → Char → List String) (end_con : List String → Bool) (dirs : List Char) (loc : List String) (acc : Nat) : Nat :=
+  let (newLoc, steps) := walk step end_con dirs loc acc
+  if end_con newLoc then steps
+  else walkMany step end_con dirs newLoc steps
 
 def solve_one (s: List String) : Nat :=
   let (dirs, m) := parseInput s
-  walkMany m dirs "AAA" 0
+  walkMany (step m) (. == ["ZZZ"]) dirs ["AAA"] 0
 
+-- PART TWO
 
-def testinput := "
-RL
-
-AAA = (BBB, CCC)
-BBB = (DDD, EEE)
-CCC = (ZZZ, GGG)
-DDD = (DDD, DDD)
-EEE = (EEE, EEE)
-GGG = (GGG, GGG)
-ZZZ = (ZZZ, ZZZ)
-".trim
-
-#eval solve_one $ testinput.splitOn "\n"
+def solve_two (s : List String) : Nat :=
+  let (dirs, m) := parseInput s
+  let start_locs := m.fold (λd l _ => if l.endsWith "A" then l::d else d) []
+  let end_con := λ(l : List String) => l.all (λx => x.endsWith "Z")
+  walkMany (step m) end_con dirs start_locs 0
 
 def main : IO Unit := do
   let f ← (String.splitOn . "\n") <$> IO.readInputForDay 8
   IO.println s!"Solution One: {solve_one f}"
+  -- TODO: times out :(
+  -- IO.println s!"Solution Two: {solve_two f}"
