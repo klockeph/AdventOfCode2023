@@ -69,42 +69,33 @@ partial def bfs (m: List (List Char)) (v : HashSet Pos) (ps : List Pos) (acc : N
 
 def solve_one (ls : List String) : Nat :=
   let m := readMap ls
-  (bfs m {} [findStart m] 0).1
+  (bfs m ∅ [findStart m] 0).1
 
+-- Any enclosed point needs to have an odd number of walls in all directions.
+partial def countWallsInDir (w : HashSet Pos) (p : Pos) (d : Dir) : Nat :=
+  if !p.valid then 0 else
+  let currentWall := if w.contains p then 1 else 0
+  currentWall + countWallsInDir w (p.inDir d) d
 
-/-
-TODO: This solution is invalid.
-The idea was that every contained point would be surrounded by the main loop.
-While that is true, it's not enough.
--/
+def allWallsOdd (p : Pos) (w : HashSet Pos) : Bool :=
+  if w.contains p then false else
+  [Dir.L, Dir.R, Dir.U, Dir.D].all (λd => (countWallsInDir w p d) % 2 == 1)
 
-partial def enclosedDir (m : HashSet Pos) (p : Pos) (d : Dir) : Bool :=
-  if !p.valid then false else
-  if m.contains p then true
-  else enclosedDir m (p.inDir d) d
-
-def enclosedDirOneStep (m : HashSet Pos) (p : Pos) (d : Dir) : Bool :=
-  if m.contains p then false
-  else enclosedDir m (p.inDir d) d
-
-def enclosed (p : Pos) (m : HashSet Pos) : Bool :=
-  [Dir.L, Dir.R, Dir.U, Dir.D].all (enclosedDirOneStep m p)
-
-def countLine (circ : HashSet Pos) (l : List Char) (x : Nat) (y : Nat) : Nat :=
+def countEnclosedInLine (walls : HashSet Pos) (l : List Char) (x : Nat) (y : Nat) : Nat :=
   match l with
   | [] => 0
   | _::cs =>
-    let count := if enclosed (x, y) circ then 1 else 0
-    count + countLine circ cs (x+1) y
+    let count := if allWallsOdd (x, y) walls then 1 else 0
+    count + countEnclosedInLine walls cs (x+1) y
 
-def countEnclosed (m : HashSet Pos) (ls : List (List Char)) (y : Nat) :=
+def countEnclosed (w : HashSet Pos) (ls : List (List Char)) (y : Nat) :=
   match ls with
   | [] => 0
-  | l::ls => countLine m l 0 y + countEnclosed m ls (y+1)
+  | l::ls => countEnclosedInLine w l 0 y + countEnclosed w ls (y+1)
 
 def solve_two (ls : List String) : Nat :=
   let m := readMap ls
-  let visited := (bfs m {} [findStart m] 0).2
+  let visited := (bfs m ∅ [findStart m] 0).2
   countEnclosed visited m 0
 
 
@@ -119,15 +110,11 @@ def testinput := "
 .L--J.L--J.
 ...........
 ".trim.splitOn "\n"
--- for example some tiles above are surrounded by pipe in every direction but not enclosed
 
--- #eval solve_two testinput
-
--- #eval (bfs (readMap testinput) {} [(0,2)] 0).1
-
--- #eval findStart $ readMap testinput
+#eval solve_two testinput
 
 def main : IO Unit := do
   let f ← IO.readInputForDay 10
   let f := f.trim.splitOn "\n"
   IO.println s!"Solution one: {solve_one f}"
+  IO.println s!"Solution two: {solve_two f}"
