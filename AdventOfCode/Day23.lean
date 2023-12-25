@@ -1,7 +1,9 @@
 import AdventOfCode.IO
 import Lean.Data.HashSet
+import Lean.Data.HashMap
 
 open Lean (HashSet)
+open Lean (HashMap)
 
 abbrev Tiles := List $ List Char
 abbrev Pos := Nat × Nat
@@ -35,60 +37,60 @@ At this point: Either think through and use dijkstra (??)
 or just implement shitty dfs.
 -/
 
-partial def dfs (get_next_fn : Tiles → Pos → List Pos) (t : Tiles) (vs : HashSet Pos) (p : Pos) : Option Nat :=
-  if p == t.endPos then some 0 else
-  get_next_fn t p
-  |>.filter (!vs.contains .)
-  |>.filterMap (dfs get_next_fn t $ vs.insert p)
+abbrev NextFnWithLength := Pos → List (Nat × Pos)
+abbrev NextFn := Pos → List Pos
+
+partial def dfs (next_fn : NextFnWithLength) (end_pos : Pos) (vs : HashSet Pos) (p : Pos): Option Nat :=
+  if p == end_pos then some 0 else
+  next_fn p
+  |>.filter (λa => !vs.contains a.2)
+  |>.filterMap (λa => dfs next_fn end_pos (vs.insert p) a.2 |>.map ( . + a.1))
   |>.maximum?
-  |>.map (. + 1)
 
 def solve_one (s : String) : Nat :=
   let t := readInput s
-  dfs (Pos.getNext) t {} start_pos
+  dfs (λa => (Pos.getNext t a).map (λx => (1,x))) t.endPos {} start_pos
   |>.get!
 
 def Pos.getNextTwo (t : Tiles) (p : Pos) : List Pos :=
   [(p.1 + 1, p.2), (p.1 - 1, p.2), (p.1, p.2 + 1), (p.1, p.2 - 1)]
   |>.filter λpn => pn.valid t ∧ pn ≠ p
 
--- Problem: This stack-crashes when the input becomes too large.
--- Idea: Parse the map into a proper graph: Only have nodes at intersections.
+partial def Pos.walkUntilCrossing (next_fn : NextFn) (p : Pos) (s: Nat := 0) (lastP : Pos := (0,0)) : (Nat × Pos) :=
+  match (next_fn p).filter (. ≠ lastP) with
+  | [pn] => pn.walkUntilCrossing next_fn (s+1) p
+  | _ => (s, p)
+
+def Pos.walkUntilCrossings (next_fn : NextFn) (p : Pos) : List (Nat × Pos) :=
+  match next_fn p with
+  | [] => panic! "Started from a non-crossing?"
+  | ps => ps.map (Pos.walkUntilCrossing next_fn . 1 p)
+          |>.filter (λx => x.2 ≠ p)
+
+-- represented as adjacence-lists, stored in a hashmap
+abbrev Graph := HashMap Pos $ List (Nat × Pos)
+
+partial def Tiles.parseGraph (t : Tiles) (next_fn : NextFn) (ps : List Pos := [start_pos]) (g : Graph := {}) : Graph :=
+  let ps := ps.filter (!g.contains .)
+  if ps.isEmpty then g else
+  let nextCs := ps.map λp => (p, p.walkUntilCrossings next_fn)
+  let g := nextCs.foldl (λg x => g.insert x.1 x.2) g
+  let ps := (nextCs.map λx => x.2.map λy => y.2).join
+  t.parseGraph next_fn ps g
+
+def Graph.getNext (g : Graph) (p : Pos) : List (Nat × Pos) :=
+  match g.find? p with
+  | none => []
+  | some p => p
+
+-- Super slow...
 def solve_two (s : String) : Nat :=
   let t := readInput s
-  dfs (Pos.getNextTwo) t {} start_pos
+  let g := t.parseGraph (Pos.getNextTwo t)
+  dfs g.getNext t.endPos {} start_pos
   |>.get!
-
-def testinput := "
-#.#####################
-#.......#########...###
-#######.#########.#.###
-###.....#.>.>.###.#.###
-###v#####.#v#.###.#.###
-###.>...#.#.#.....#...#
-###v###.#.#.#########.#
-###...#.#.#.......#...#
-#####.#.#.#######.#.###
-#.....#.#.#.......#...#
-#.#####.#.#.#########v#
-#.#...#...#...###...>.#
-#.#.#v#######v###.###v#
-#...#.>.#...>.>.#.###.#
-#####v#.#.###v#.#.###.#
-#.....#...#...#.#.#...#
-#.#########.###.#.#.###
-#...###...#...#...#.###
-###.###.#.###v#####v###
-#...#...#.#.>.>.#.>.###
-#.###.###.#.###.#.#v###
-#.....###...###...#...#
-#####################.#
-".trim
-
-#eval solve_one testinput
-#eval solve_two testinput
 
 def main : IO Unit := do
   let f ← String.trim <$> IO.readInputForDay 23
   println! s!"Solution one: {solve_one f}"
-  println! s!"Solution one: <Would stack overflow>"
+  println! s!"Solution one: {solve_two f}"
