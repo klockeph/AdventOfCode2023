@@ -71,10 +71,6 @@ structure BfsState where
   visited : HashSet (Pos × Dir)
   frontier : List (Pos × Dir)
 
-def startPos : (Pos × Dir) := ((0,0), Dir.Right)
-
-def startState : BfsState := {visited := ({} : HashSet (Pos × Dir)).insert startPos, frontier := [startPos]}
-
 partial def bfs (t : List (List Char)) (s : BfsState) : HashSet (Pos × Dir) :=
   if s.frontier.isEmpty then s.visited else
   let nextTiles := s.frontier.map (λf => expandFrontier t f.1 f.2)
@@ -82,12 +78,35 @@ partial def bfs (t : List (List Char)) (s : BfsState) : HashSet (Pos × Dir) :=
     |>.filter (λt => ! s.visited.contains t)
   bfs t {visited := s.visited.insertMany nextTiles, frontier := nextTiles}
 
-def solve_one (s : String) :=
-  let t := readInput s
-  let posdirs := (bfs t startState)
+def constructStartState (p : Pos × Dir) : BfsState :=
+  {visited := ({} : HashSet _).insert p, frontier := [p]}
+
+def energizedFields (t : List (List Char)) (p : Pos × Dir) : Nat :=
+  let posdirs := bfs t $ constructStartState p
   ({} : HashSet Pos).insertMany (posdirs.toList.map Prod.fst)
   |>.size
+
+def solve_one (s : String) :=
+  energizedFields (readInput s) ((0,0), Dir.Right)
+
+
+def getPossibleStarts (n : Nat) : (List (Pos × Dir)) :=
+  let rs := List.range n |>.map Int.ofNat
+  [
+    rs.map (λa => ((0, a), Dir.Right)),
+    rs.map (λa => ((a, 0), Dir.Down)),
+    rs.map (λa => ((n - 1, a), Dir.Left)),
+    rs.map (λa => ((a, n - 1), Dir.Up)),
+  ].join
+
+def solve_two (s : String) :=
+  let r := readInput s
+  let e_fun := energizedFields r
+  getPossibleStarts r.length
+  |>.map e_fun
+  |>.foldl (λa b => if a > b then a else b) 0
 
 def main : IO Unit := do
   let f ← String.trim <$> IO.readInputForDay 16
   println! s!"Solution One: {solve_one f}"
+  println! s!"Solution Two: {solve_two f}"
