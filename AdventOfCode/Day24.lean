@@ -64,6 +64,21 @@ def solve_one (s : String) : Nat :=
   countIntersects2D (200000000000000, 400000000000000) $
     s.trim.splitOn "\n" |>.map $ Hail.fromString ∘ String.trim
 
+/-
+Solution 2 as follows:
+* Choose 6 hail-corns, 3 of which form a basis of R3 with (vx,vy,vz)
+* Then find sx sy sz svx svy svz by solving the following equations for them:
+  First hail:
+    sx + svx * t1 = x1 + vx1 * t1
+    sy + svy * t1 = y1 + vy1 * t1
+    sz + svz * t1 = z1 + vz1 * t1
+  Second hail:
+    sx + svx * t2 = x2 + vx2 * t2
+    ...
+
+But I hate linear algebra so nope. Maybe there's a module in Mathplotlib?
+-/
+
 def main : IO Unit := do
   let f ← IO.readInputForDay 24
   IO.println s!"Solution One: {solve_one f}"
